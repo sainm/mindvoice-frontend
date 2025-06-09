@@ -16,6 +16,7 @@ import ReportDetail from './pages/ReportDetail';
 import ReportManagement from './pages/ReportManagement';
 import UserManagement from './pages/UserManagement';
 import AssessmentManagement from './pages/AssessmentManagement';
+import ClientManagement from './pages/ClientManagement';
 // 导入临时页面组件
 import { Box, Typography, Paper, Container, Button } from '@mui/material';
 import MainLayout from './components/layout/MainLayout';
@@ -118,6 +119,13 @@ function App() {
             </ProtectedRoute>
           } />
           
+          {/* 来访者管理路由 */}
+          <Route path="/clients" element={
+            <ProtectedRoute>
+              <ClientManagement />
+            </ProtectedRoute>
+          } />
+          
           {/* 测评管理路由 */}
           <Route path="/assessment-management" element={
             <ProtectedRoute>
@@ -134,11 +142,6 @@ function App() {
           <Route path="/self-help" element={
             <ProtectedRoute>
               <UnderConstructionPage title="心理自助" />
-            </ProtectedRoute>
-          } />
-          <Route path="/clients" element={
-            <ProtectedRoute>
-              <UnderConstructionPage title="来访者管理" />
             </ProtectedRoute>
           } />
           <Route path="/schedule" element={
