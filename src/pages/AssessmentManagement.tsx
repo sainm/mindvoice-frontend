@@ -1,590 +1,464 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Container,
+import React, { useState, useEffect } from 'react';
+import { 
+  Box, 
+  Container, 
+  Typography, 
+  Paper, 
+  Button, 
+  TextField,
+  InputAdornment,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Card,
+  CardContent,
   Divider,
   FormControl,
-  Grid,
-  IconButton,
-  InputAdornment,
   InputLabel,
-  MenuItem,
-  Paper,
   Select,
-  Stack,
-  Tab,
-  Tabs,
-  TextField,
-  Typography,
+  MenuItem,
   Tooltip,
   Alert,
   Snackbar,
-  useTheme
+  Grid
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-  Search as SearchIcon,
-  Refresh as RefreshIcon,
-  CloudDownload as DownloadIcon,
-  CloudUpload as UploadIcon,
-  FileDownload as ExportIcon,
-  FileUpload as ImportIcon
-} from '@mui/icons-material';
-import { DataGrid, GridColDef, GridRenderCellParams, GridValueFormatter } from '@mui/x-data-grid';
-import { Assessment, QuestionType } from '../types/assessment.types';
 import { 
-  getAssessments, 
-  createAssessment, 
-  updateAssessment, 
-  deleteAssessment, 
-  exportAssessment, 
-  importAssessment,
-  getAssessmentStats 
-} from '../services/assessmentManagementService';
-import { isAdmin } from '../services/authService';
+  Add as AddIcon, 
+  Search as SearchIcon, 
+  Edit as EditIcon, 
+  Delete as DeleteIcon,
+  FilterList as FilterIcon,
+  Clear as ClearIcon,
+  Psychology as PsychologyIcon,
+  Description as DescriptionIcon
+} from '@mui/icons-material';
 import MainLayout from '../components/layout/MainLayout';
+import { Assessment } from '../types/assessment.types';
+import { getAllAssessments } from '../services/mockAssessmentService';
 
-// 统计卡片组件
-const StatsCard = ({ title, count, icon, color }: { title: string; count: number; icon: React.ReactNode; color: string }) => {
-  return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: 2,
-        boxShadow: 3,
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '4px',
-          backgroundColor: color,
-        }
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '50%',
-            width: 56,
-            height: 56,
-            backgroundColor: `${color}22`,
-            mr: 2
-          }}
-        >
-          {icon}
-        </Box>
-        
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            {title}
-          </Typography>
-          <Typography variant="h4" component="div" fontWeight="bold">
-            {count}
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
-
-// 定义测评管理页面组件
+/**
+ * Assessment Management Page Component
+ * 评测管理页面组件
+ */
 const AssessmentManagement: React.FC = () => {
-  const theme = useTheme();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // 状态定义
+  // 状态管理
   const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [total, setTotal] = useState<number>(0);
-  const [page, setPage] = useState<number>(0);
-  const [pageSize, setPageSize] = useState<number>(15);
+  const [filteredAssessments, setFilteredAssessments] = useState<Assessment[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
-  const [stats, setStats] = useState<any>(null);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: 'success' | 'error' | 'info' | 'warning';
-  }>({
-    open: false,
-    message: '',
-    severity: 'info'
-  });
-  
-  // 检查是否有管理员权限
-  const hasAdminAccess = isAdmin();
-  
-  // 加载统计信息
-  const loadStats = async () => {
-    try {
-      const statsData = await getAssessmentStats();
-      setStats(statsData);
-      
-      // 提取所有类别
-      if (statsData.categoryCounts) {
-        setCategories(Object.keys(statsData.categoryCounts));
-      }
-    } catch (error) {
-      console.error('加载统计信息失败', error);
-      showSnackbar('加载统计信息失败', 'error');
-    }
-  };
-  
-  // 加载评测量表列表
-  const loadAssessments = async () => {
-    setLoading(true);
-    try {
-      // 构建筛选条件
-      const filters: any = {};
-      
-      if (categoryFilter) {
-        filters.category = categoryFilter;
-      }
-      
-      if (searchTerm) {
-        filters.searchTerm = searchTerm;
-      }
-      
-      // 调用API获取评测量表列表
-      const result = await getAssessments(page + 1, pageSize, filters);
-      setAssessments(result.assessments);
-      setTotal(result.total);
-    } catch (error) {
-      console.error('加载评测量表列表失败', error);
-      showSnackbar('加载评测量表列表失败', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // 首次加载和筛选条件变化时重新加载数据
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [assessmentToDelete, setAssessmentToDelete] = useState<number | null>(null);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+
+  // 获取所有评测量表
   useEffect(() => {
-    loadAssessments();
-    loadStats();
-  }, [page, pageSize]);
-  
-  // 处理搜索
-  const handleSearch = () => {
-    setPage(0);
-    loadAssessments();
-  };
-  
-  // 处理重置搜索
-  const handleResetSearch = () => {
-    setSearchTerm('');
-    setCategoryFilter('');
-    setPage(0);
-    loadAssessments();
-  };
-  
-  // 处理删除评测量表
-  const handleDeleteAssessment = (assessment: Assessment) => {
-    setSelectedAssessment(assessment);
-    setIsDeleteDialogOpen(true);
-  };
-  
-  // 确认删除评测量表
-  const confirmDeleteAssessment = async () => {
-    if (!selectedAssessment) return;
-    
-    try {
-      await deleteAssessment(selectedAssessment.id);
-      setIsDeleteDialogOpen(false);
-      loadAssessments();
-      loadStats();
-      showSnackbar('评测量表已删除', 'success');
-    } catch (error) {
-      console.error('删除评测量表失败', error);
-      showSnackbar('删除评测量表失败', 'error');
-    }
-  };
-  
-  // 处理导出评测量表
-  const handleExportAssessment = async (id?: number) => {
-    try {
-      await exportAssessment(id);
-      showSnackbar(id ? '评测量表导出成功' : '所有评测量表导出成功', 'success');
-    } catch (error) {
-      console.error('导出评测量表失败', error);
-      showSnackbar('导出评测量表失败', 'error');
-    }
-  };
-  
-  // 处理导入评测量表
-  const handleImportClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-  
-  // 处理文件选择
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const jsonData = e.target?.result as string;
-        
-        try {
-          const result = await importAssessment(jsonData);
-          loadAssessments();
-          loadStats();
-          
-          const count = Array.isArray(result) ? result.length : 1;
-          showSnackbar(`成功导入 ${count} 个评测量表`, 'success');
-        } catch (error) {
-          console.error('导入评测量表失败', error);
-          showSnackbar('导入评测量表失败：格式无效', 'error');
-        }
-      };
-      reader.readAsText(file);
-      
-      // 清空文件输入，以便可以重新选择同一个文件
-      event.target.value = '';
-    } catch (error) {
-      console.error('读取文件失败', error);
-      showSnackbar('读取文件失败', 'error');
-    }
-  };
-  
-  // 显示提示信息
-  const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' | 'warning') => {
-    setSnackbar({
-      open: true,
-      message,
-      severity
-    });
-  };
-  
-  // 关闭提示信息
-  const handleCloseSnackbar = () => {
-    setSnackbar({
-      ...snackbar,
-      open: false
-    });
-  };
-  
-  // 日期格式化函数
-  const dateFormatter: GridValueFormatter = (params: any) => {
-    if (!params.value) return '-';
-    return new Date(params.value as string).toLocaleString();
-  };
-  
-  // 定义表格列
-  const columns: GridColDef[] = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'title', headerName: '量表名称', width: 200, flex: 1 },
-    { field: 'category', headerName: '类别', width: 120 },
-    { 
-      field: 'questions', 
-      headerName: '问题数量', 
-      width: 100,
-      valueGetter: (params) => params.row.questions?.length || 0
-    },
-    {
-      field: 'timeLimit',
-      headerName: '时间限制',
-      width: 100,
-      valueFormatter: (params) => params.value ? `${params.value}分钟` : '无限制'
-    },
-    {
-      field: 'createdAt',
-      headerName: '创建时间',
-      width: 160,
-      valueFormatter: dateFormatter
-    },
-    {
-      field: 'updatedAt',
-      headerName: '更新时间',
-      width: 160,
-      valueFormatter: dateFormatter
-    },
-    {
-      field: 'actions',
-      headerName: '操作',
-      width: 180,
-      sortable: false,
-      renderCell: (params: GridRenderCellParams<Assessment>) => {
-        const assessment = params.row as Assessment;
-        
-        return (
-          <Stack direction="row" spacing={1}>
-            <Tooltip title="编辑量表">
-              <IconButton
-                size="small"
-                color="primary"
-                onClick={() => console.log('编辑量表', assessment.id)}
-                disabled={!hasAdminAccess}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            
-            <Tooltip title="导出量表">
-              <IconButton
-                size="small"
-                color="secondary"
-                onClick={() => handleExportAssessment(assessment.id)}
-              >
-                <ExportIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            
-            <Tooltip title="删除量表">
-              <IconButton
-                size="small"
-                color="error"
-                onClick={() => handleDeleteAssessment(assessment)}
-                disabled={!hasAdminAccess}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        );
+    const fetchAssessments = async () => {
+      try {
+        const data = await getAllAssessments();
+        setAssessments(data);
+        setFilteredAssessments(data);
+        setLoading(false);
+      } catch (error) {
+        console.error('获取评测列表失败', error);
+        setLoading(false);
+        showSnackbar('获取评测列表失败', 'error');
       }
+    };
+
+    fetchAssessments();
+  }, []);
+
+  // 处理搜索和过滤
+  useEffect(() => {
+    let result = assessments;
+    
+    // 搜索过滤
+    if (searchTerm) {
+      result = result.filter(assessment => 
+        assessment.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        assessment.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-  ];
-  
+    
+    // 分类过滤
+    if (selectedCategory) {
+      result = result.filter(assessment => assessment.category === selectedCategory);
+    }
+    
+    setFilteredAssessments(result);
+    setPage(0); // 重置到第一页
+  }, [searchTerm, selectedCategory, assessments]);
+
+  // 获取所有唯一的分类
+  const categories = [...new Set(assessments.map(assessment => assessment.category))];
+
+  // 表格分页处理
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // 清除筛选
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('');
+  };
+
+  // 删除评测量表
+  const handleDeleteClick = (id: number) => {
+    setAssessmentToDelete(id);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (assessmentToDelete !== null) {
+      // 在实际应用中，这里应该调用API删除评测量表
+      const updatedAssessments = assessments.filter(
+        assessment => assessment.id !== assessmentToDelete
+      );
+      setAssessments(updatedAssessments);
+      showSnackbar('评测量表已成功删除', 'success');
+    }
+    setOpenDeleteDialog(false);
+    setAssessmentToDelete(null);
+  };
+
+  const handleDeleteCancel = () => {
+    setOpenDeleteDialog(false);
+    setAssessmentToDelete(null);
+  };
+
+  // 显示提示消息
+  const showSnackbar = (message: string, severity: 'success' | 'error') => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setOpenSnackbar(true);
+  };
+
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
+  // 创建新评测量表
+  const handleCreateAssessment = () => {
+    // 在实际应用中，这里应该导航到创建评测量表页面
+    showSnackbar('创建评测量表功能正在开发中', 'success');
+  };
+
+  // 编辑评测量表
+  const handleEditAssessment = (id: number) => {
+    // 在实际应用中，这里应该导航到编辑评测量表页面
+    showSnackbar(`编辑评测量表 ID: ${id} 功能正在开发中`, 'success');
+  };
+
+  // 查看评测量表详情
+  const handleViewAssessment = (id: number) => {
+    // 在实际应用中，这里应该导航到评测量表详情页面
+    showSnackbar(`查看评测量表 ID: ${id} 功能正在开发中`, 'success');
+  };
+
   return (
     <MainLayout>
-      <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <Container maxWidth="xl" sx={{ mt: 2, mb: 2, display: 'flex', flexDirection: 'column' }}>
-          <Paper
-            sx={{
-              p: 3,
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 2,
-              overflow: 'hidden',
-              boxShadow: theme.shadows[3],
-              position: 'relative',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '4px',
-                background: 'linear-gradient(90deg, #3f51b5, #2196f3, #00bcd4, #009688)',
-              }
+      <Container maxWidth="xl" sx={{ mt: 2, mb: 4 }}>
+        {/* 页面标题和操作按钮 */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mb: 3
+        }}>
+          <Typography 
+            variant="h4" 
+            component="h1" 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              fontWeight: 'bold',
+              color: 'primary.main'
             }}
           >
-            <Typography variant="h4" component="h1" gutterBottom>
-              测评管理
-            </Typography>
-            
-            {/* 统计信息 */}
-            {stats && (
-              <Grid container spacing={3} sx={{ mb: 3 }}>
-                <Grid size={3}>
-                  <StatsCard
-                    title="总量表数"
-                    count={stats.totalAssessments}
-                    icon={<DownloadIcon sx={{ fontSize: 32, color: '#3f51b5' }} />}
-                    color="#3f51b5"
-                  />
-                </Grid>
-                
-                {categories.slice(0, 3).map((category, index) => (
-                  <Grid size={3} key={category}>
-                    <StatsCard
-                      title={`${category}量表`}
-                      count={stats.categoryCounts[category]}
-                      icon={
-                        index === 0 ? <DownloadIcon sx={{ fontSize: 32, color: '#4caf50' }} /> :
-                        index === 1 ? <DownloadIcon sx={{ fontSize: 32, color: '#ff9800' }} /> :
-                        <DownloadIcon sx={{ fontSize: 32, color: '#f44336' }} />
-                      }
-                      color={
-                        index === 0 ? '#4caf50' :
-                        index === 1 ? '#ff9800' :
-                        '#f44336'
-                      }
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-            
-            {/* 筛选工具栏 */}
-            <Box sx={{ mb: 3 }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid size={4}>
-                  <TextField
-                    fullWidth
-                    variant="outlined"
-                    size="small"
-                    label="搜索量表"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton size="small" onClick={handleSearch}>
-                            <SearchIcon />
-                          </IconButton>
-                        </InputAdornment>
-                      )
-                    }}
-                  />
-                </Grid>
-                
-                <Grid size={3}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>类别</InputLabel>
-                    <Select
-                      value={categoryFilter}
-                      label="类别"
-                      onChange={(e) => setCategoryFilter(e.target.value)}
-                    >
-                      <MenuItem value="">全部</MenuItem>
-                      {categories.map((category) => (
-                        <MenuItem key={category} value={category}>{category}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                
-                <Grid size={5}>
-                  <Stack direction="row" spacing={2} justifyContent="flex-end">
-                    <Button
-                      variant="outlined"
-                      startIcon={<RefreshIcon />}
-                      onClick={handleResetSearch}
-                    >
-                      重置
-                    </Button>
-                    
-                    <Button
-                      variant="outlined"
-                      startIcon={<ImportIcon />}
-                      onClick={handleImportClick}
-                      disabled={!hasAdminAccess}
-                    >
-                      导入量表
-                    </Button>
-                    
-                    <Button
-                      variant="outlined"
-                      startIcon={<ExportIcon />}
-                      onClick={() => handleExportAssessment()}
-                    >
-                      全部导出
-                    </Button>
-                    
-                    <Button
-                      variant="contained"
-                      startIcon={<AddIcon />}
-                      onClick={() => console.log('添加量表')}
-                      disabled={!hasAdminAccess}
-                    >
-                      添加量表
-                    </Button>
-                    
-                    {/* 隐藏的文件输入 */}
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      style={{ display: 'none' }}
-                      accept=".json"
-                      onChange={handleFileSelect}
-                    />
-                  </Stack>
-                </Grid>
-              </Grid>
-            </Box>
-            
-            {/* 量表列表 */}
-            <Box sx={{ width: '100%' }}>
-              <DataGrid
-                rows={assessments}
-                columns={columns}
-                pagination
-                paginationMode="server"
-                rowCount={total}
-                loading={loading}
-                pageSizeOptions={[15, 25, 50, 100]}
-                initialState={{
-                  pagination: {
-                    paginationModel: { pageSize, page },
-                  },
-                }}
-                onPaginationModelChange={(model) => {
-                  setPage(model.page);
-                  setPageSize(model.pageSize);
-                }}
-                disableRowSelectionOnClick
-                autoHeight
-                sx={{
-                  '& .MuiDataGrid-cell:focus': {
-                    outline: 'none',
-                  },
-                  '& .MuiDataGrid-columnHeader:focus': {
-                    outline: 'none',
-                  }
+            <PsychologyIcon sx={{ mr: 1, fontSize: 32 }} />
+            评测管理
+          </Typography>
+          
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            onClick={handleCreateAssessment}
+          >
+            创建评测量表
+          </Button>
+        </Box>
+
+        {/* 统计卡片 */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  总评测量表数
+                </Typography>
+                <Typography variant="h4" component="div">
+                  {assessments.length}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  分类数量
+                </Typography>
+                <Typography variant="h4" component="div">
+                  {categories.length}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  本月新增
+                </Typography>
+                <Typography variant="h4" component="div">
+                  {/* 实际应用中应该计算本月新增量表数量 */}
+                  2
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  使用次数最多
+                </Typography>
+                <Typography variant="h4" component="div">
+                  {/* 实际应用中应该显示使用次数最多的量表名称 */}
+                  SCL-90
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* 搜索和筛选 */}
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                placeholder="搜索评测量表..."
+                variant="outlined"
+                size="small"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon color="action" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchTerm && (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setSearchTerm('')} size="small">
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  )
                 }}
               />
-            </Box>
-          </Paper>
-          
-          {/* 删除确认对话框 */}
-          <Dialog
-            open={isDeleteDialogOpen}
-            onClose={() => setIsDeleteDialogOpen(false)}
-          >
-            <DialogTitle>确认删除</DialogTitle>
-            <DialogContent>
-              <DialogContentText>
-                您确定要删除量表 "{selectedAssessment?.title}" 吗？此操作不可撤销。
-              </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setIsDeleteDialogOpen(false)}>取消</Button>
-              <Button onClick={confirmDeleteAssessment} color="error" variant="contained">
-                删除
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="category-filter-label">按分类筛选</InputLabel>
+                <Select
+                  labelId="category-filter-label"
+                  value={selectedCategory}
+                  label="按分类筛选"
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <MenuItem value="">全部分类</MenuItem>
+                  {categories.map((category) => (
+                    <MenuItem key={category} value={category}>
+                      {category}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, md: 2 }}>
+              <Button 
+                fullWidth
+                variant="outlined" 
+                startIcon={<FilterIcon />}
+                onClick={handleClearFilters}
+              >
+                清除筛选
               </Button>
-            </DialogActions>
-          </Dialog>
-          
-          {/* 提示信息 */}
-          <Snackbar
-            open={snackbar.open}
-            autoHideDuration={6000}
-            onClose={handleCloseSnackbar}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            </Grid>
+          </Grid>
+        </Paper>
+
+        {/* 评测量表列表 */}
+        <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+          <TableContainer sx={{ maxHeight: 440 }}>
+            <Table stickyHeader aria-label="评测量表列表">
+              <TableHead>
+                <TableRow>
+                  <TableCell>ID</TableCell>
+                  <TableCell>名称</TableCell>
+                  <TableCell>分类</TableCell>
+                  <TableCell>问题数量</TableCell>
+                  <TableCell>时间限制</TableCell>
+                  <TableCell>创建日期</TableCell>
+                  <TableCell align="center">操作</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredAssessments
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((assessment) => (
+                    <TableRow hover key={assessment.id}>
+                      <TableCell>{assessment.id}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <DescriptionIcon sx={{ mr: 1, color: 'primary.main' }} />
+                          {assessment.title}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={assessment.category} 
+                          size="small" 
+                          color="primary" 
+                          variant="outlined" 
+                        />
+                      </TableCell>
+                      <TableCell>{assessment.questions.length}</TableCell>
+                      <TableCell>
+                        {assessment.timeLimit ? `${assessment.timeLimit}分钟` : '无限制'}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(assessment.createdAt).toLocaleDateString('zh-CN')}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                          <Tooltip title="查看详情">
+                            <IconButton 
+                              size="small" 
+                              color="primary"
+                              onClick={() => handleViewAssessment(assessment.id)}
+                            >
+                              <DescriptionIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="编辑">
+                            <IconButton 
+                              size="small" 
+                              color="primary"
+                              onClick={() => handleEditAssessment(assessment.id)}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="删除">
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={() => handleDeleteClick(assessment.id)}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                {filteredAssessments.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                      没有找到匹配的评测量表
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25]}
+            component="div"
+            count={filteredAssessments.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            labelRowsPerPage="每页行数:"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} 共 ${count}`}
+          />
+        </Paper>
+
+        {/* 删除确认对话框 */}
+        <Dialog
+          open={openDeleteDialog}
+          onClose={handleDeleteCancel}
+        >
+          <DialogTitle>确认删除</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              您确定要删除这个评测量表吗？此操作不可逆。
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel} color="primary">
+              取消
+            </Button>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+              删除
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* 提示消息 */}
+        <Snackbar 
+          open={openSnackbar} 
+          autoHideDuration={6000} 
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert 
+            onClose={handleCloseSnackbar} 
+            severity={snackbarSeverity} 
+            variant="filled"
+            sx={{ width: '100%' }}
           >
-            <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
-              {snackbar.message}
-            </Alert>
-          </Snackbar>
-        </Container>
-      </Box>
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+      </Container>
     </MainLayout>
   );
 };

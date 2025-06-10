@@ -16,7 +16,10 @@ import ReportDetail from './pages/ReportDetail';
 import ReportManagement from './pages/ReportManagement';
 import UserManagement from './pages/UserManagement';
 import AssessmentManagement from './pages/AssessmentManagement';
+import AppointmentManagement from './pages/AppointmentManagement';
 import ClientManagement from './pages/ClientManagement';
+import Appointments from './pages/Appointments';
+import RiskAlerts from './pages/RiskAlerts';
 // 导入临时页面组件
 import { Box, Typography, Paper, Container, Button } from '@mui/material';
 import MainLayout from './components/layout/MainLayout';
@@ -133,12 +136,28 @@ function App() {
             </ProtectedRoute>
           } />
           
-          {/* 添加临时页面路由 */}
-          <Route path="/appointments" element={
+          {/* 预约咨询管理路由 */}
+          <Route path="/appointment-management" element={
             <ProtectedRoute>
-              <UnderConstructionPage title="预约咨询" />
+              <AppointmentManagement />
             </ProtectedRoute>
           } />
+          
+          {/* 用户预约咨询路由 */}
+          <Route path="/appointments" element={
+            <ProtectedRoute>
+              <Appointments />
+            </ProtectedRoute>
+          } />
+          
+          {/* 高风险预警路由 */}
+          <Route path="/risk-alerts" element={
+            <ProtectedRoute>
+              <RiskAlerts />
+            </ProtectedRoute>
+          } />
+          
+          {/* 添加临时页面路由 */}
           <Route path="/self-help" element={
             <ProtectedRoute>
               <UnderConstructionPage title="心理自助" />
@@ -147,11 +166,6 @@ function App() {
           <Route path="/schedule" element={
             <ProtectedRoute>
               <UnderConstructionPage title="预约管理" />
-            </ProtectedRoute>
-          } />
-          <Route path="/risk-alerts" element={
-            <ProtectedRoute>
-              <UnderConstructionPage title="高风险预警" />
             </ProtectedRoute>
           } />
           <Route path="/analytics" element={

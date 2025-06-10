@@ -98,6 +98,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     // 管理员菜单项
     { text: '用户管理', icon: <People />, path: '/users', roles: [UserRole.ADMIN] },
     { text: '评测管理', icon: <Assessment />, path: '/assessment-management', roles: [UserRole.ADMIN] },
+    { text: '预约管理', icon: <CalendarMonth />, path: '/appointment-management', roles: [UserRole.ADMIN] },
     { text: '数据分析', icon: <BarChart />, path: '/analytics', roles: [UserRole.ADMIN] },
     { text: '系统配置', icon: <Storage />, path: '/system', roles: [UserRole.ADMIN] },
     

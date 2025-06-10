@@ -37,13 +37,13 @@ import {
   Assessment as AssessmentIcon,
   Event as EventIcon
 } from '@mui/icons-material';
-import { DataGrid, GridColDef, GridRenderCellParams, GridValueFormatter } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridRenderCellParams, GridValueFormatterParams } from '@mui/x-data-grid';
 import { User, UserRole, UserStatus } from '../types/user.types';
 import { getUsers, createUser, updateUser, deleteUser, updateUserStatus, resetUserPassword, getUserStats } from '../services/userService';
 import { isAdmin } from '../services/authService';
 import UserForm from '../components/user/UserForm';
 import MainLayout from '../components/layout/MainLayout';
-// import ClientForm from '../components/client/ClientForm';
+import ClientForm from '../components/client/ClientForm';
 
 // 用户状态标签映射
 const userStatusMap = {
@@ -104,7 +104,10 @@ const ClientStatsCard = ({ title, count, icon, color }: { title: string; count: 
   );
 };
 
-// 定义来访者管理页面组件
+/**
+ * 来访者管理页面组件
+ * 用于管理系统中的来访者（普通用户）
+ */
 const ClientManagement: React.FC = () => {
   const theme = useTheme();
   
@@ -284,15 +287,15 @@ const ClientManagement: React.FC = () => {
   };
   
   // 处理选项卡变更
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
     setPage(0);
   };
   
   // 日期格式化
-  const dateFormatter: GridValueFormatter = (params: any) => {
+  const dateFormatter = (params: GridValueFormatterParams) => {
     if (!params.value) return '';
-    const date = new Date(params.value);
+    const date = new Date(params.value.toString());
     return date.toLocaleString('zh-CN');
   };
 
@@ -324,25 +327,31 @@ const ClientManagement: React.FC = () => {
       field: 'name',
       headerName: '姓名',
       width: 120,
-      valueGetter: (params) => params.row.name || '未设置'
+      renderCell: (params: GridRenderCellParams) => (
+        <>{params.row.name || '未设置'}</>
+      )
     },
     {
       field: 'email',
       headerName: '邮箱',
       width: 180,
-      valueGetter: (params) => params.row.email || '未设置'
+      renderCell: (params: GridRenderCellParams) => (
+        <>{params.row.email || '未设置'}</>
+      )
     },
     {
       field: 'phone',
       headerName: '手机号',
       width: 140,
-      valueGetter: (params) => params.row.phone || '未设置'
+      renderCell: (params: GridRenderCellParams) => (
+        <>{params.row.phone || '未设置'}</>
+      )
     },
     {
       field: 'status',
       headerName: '状态',
       width: 100,
-      renderCell: (params) => {
+      renderCell: (params: GridRenderCellParams) => {
         const status = params.value as UserStatus;
         return (
           <Box
@@ -379,7 +388,7 @@ const ClientManagement: React.FC = () => {
       width: 240,
       sortable: false,
       filterable: false,
-      renderCell: (params) => (
+      renderCell: (params: GridRenderCellParams) => (
         <Stack direction="row" spacing={1}>
           <IconButton
             size="small"
